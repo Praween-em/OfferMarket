@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: offer-market-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: DATABASE_URL
+        sync: false
+      - key: BUNNY_STORAGE_ZONE_NAME
+        sync: false
+      - key: BUNNY_ACCESS_KEY
+        sync: false
+      - key: BUNNY_STORAGE_HOSTNAME
+        sync: false
+      - key: BUNNY_PULL_ZONE_URL
+        sync: false
+      - key: MSG91_AUTH_KEY
+        sync: false
+      - key: MSG91_TEMPLATE_ID
+        sync: false
+      - key: DEV_OTP_BYPASS
+        sync: false
+      - key: PORT
+        value: 10000
