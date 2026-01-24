@@ -36,4 +36,4 @@ ENV NODE_ENV=production
 EXPOSE 3000
 
 # Start the server
-CMD ["npm", "run", "start:prod"]
+CMD ["sh", "-c", "if [ -f dist/main.js ]; then node dist/main.js; else node dist/src/main.js; fi"]
