@@ -26,19 +26,43 @@ export class OffersController {
   create(@Body() createOfferDto: CreateOfferDto) {
     return this.offersService.create(createOfferDto);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('campaigns')
+  createCampaign(@Request() req: any, @Body() createCampaignDto: any) {
+    return this.offersService.createCampaign(req.user.userId, createCampaignDto);
+  }
   @Get('business/:businessId')
   getOffersByBusiness(@Param('businessId') businessId: string) {
     return this.offersService.getOffersByBusiness(businessId);
   }
 
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.offersService.findOne(id);
+  }
+
   @UseGuards(JwtAuthGuard)
-  @Post(':id/report')
-  reportOffer(
-    @Param('id') id: string,
-    @Request() req: any,
-    @Body('reason') reason: string,
-    @Body('notes') notes?: string,
-  ) {
-    return this.offersService.reportOffer(id, req.user.userId, reason, notes);
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateOfferDto: any) {
+    return this.offersService.update(id, updateOfferDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/toggle-status')
+  toggleStatus(@Param('id') id: string) {
+    return this.offersService.toggleStatus(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('owner/dashboard-stats')
+  getDashboardStats(@Request() req: any) {
+    return this.offersService.getDashboardStats(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('owner/analytics')
+  getAnalytics(@Request() req: any) {
+    return this.offersService.getAnalytics(req.user.userId);
   }
 }

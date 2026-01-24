@@ -7,6 +7,110 @@ import { CreateOfferDto } from './dto/create-offer.dto'; // Assuming this DTO ex
 export class OffersService {
   constructor(private prisma: PrismaService) { }
 
+  async createCampaign(userId: string, createCampaignDto: any) {
+    const { title, start_date, end_date, items } = createCampaignDto;
+
+    // 1. Get the business and its branches for this user
+    let business = await this.prisma.businesses.findFirst({
+      where: { owner_id: userId },
+      include: { business_branches: true },
+    });
+
+    if (!business) {
+      throw new Error('Business not found for user');
+    }
+
+    // Auto-create branch if missing (e.g. for existing users who skipped branch setup)
+    if (business.business_branches.length === 0) {
+      const defaultBranch = await this.prisma.business_branches.create({
+        data: {
+          business_id: business.id,
+          branch_name: 'Main Store',
+          city: 'Default City',
+
+          is_active: true,
+        },
+      });
+      business.business_branches = [defaultBranch];
+    }
+
+    const branchId = business.business_branches[0].id;
+
+    return this.prisma.$transaction(async (tx: any) => {
+      // 2. Create the Campaign
+      const campaign = await tx.campaigns.create({
+        data: {
+          business_id: business.id,
+          name: title,
+          start_date: new Date(start_date),
+          end_date: new Date(end_date),
+          created_by: userId,
+        },
+      });
+
+      // 3. Create each Offer in the campaign
+      const createdOffers: any[] = [];
+      for (const item of items) {
+        const offer = await tx.offers.create({
+          data: {
+            branch_id: branchId,
+            campaign_id: campaign.id,
+            title: item.name,
+            short_description: item.name,
+            description: item.rules.description || item.name,
+            start_date: new Date(start_date),
+            end_date: new Date(end_date),
+            status: 'active',
+            offer_scope: 'store_wide',
+            created_by: userId,
+          },
+        });
+
+        // 4. Create Rule for the offer
+        await tx.offer_rules.create({
+          data: {
+            offer_id: offer.id,
+            rule_type: item.type,
+            discount_value: item.rules.discount ? parseFloat(item.rules.discount) : null,
+            buy_quantity: item.rules.buyQty ? parseInt(item.rules.buyQty) : null,
+            get_quantity: item.rules.getQty ? parseInt(item.rules.getQty) : null,
+            min_purchase_amount: item.rules.minSpend ? parseFloat(item.rules.minSpend) : null,
+            conditions: {
+              ...item.rules,
+              text: item.rules.conditions || '',
+              original_price: item.rules.original_price,
+              offer_price: item.rules.offer_price
+            },
+          },
+        });
+
+        // 5. Create Media for the offer
+        if (item.image1) {
+          await tx.offer_media.create({
+            data: {
+              offer_id: offer.id,
+              image_url: item.image1,
+              sort_order: 0,
+            },
+          });
+        }
+        if (item.image2) {
+          await tx.offer_media.create({
+            data: {
+              offer_id: offer.id,
+              image_url: item.image2,
+              sort_order: 1,
+            },
+          });
+        }
+
+        createdOffers.push(offer);
+      }
+
+      return { campaign, offers: createdOffers };
+    });
+  }
+
   async create(createOfferDto: CreateOfferDto) {
     const {
       branch_id,
@@ -232,36 +336,62 @@ export class OffersService {
   async getOffersByBusiness(businessId: string) {
     return this.prisma.offers.findMany({
       where: {
-        status: 'active',
         business_branches: {
           business_id: businessId,
         },
       },
       include: {
         business_branches: {
-          select: {
-            city: true,
-            businesses: {
-              select: {
-                business_name: true,
-                logo_url: true,
-              },
-            },
+          include: {
+            businesses: true,
           },
         },
         offer_media: {
-          take: 1,
           orderBy: { sort_order: 'asc' },
         },
         offer_rules: {
           select: {
             rule_type: true,
             discount_value: true,
+            buy_quantity: true,
+            get_quantity: true,
+            min_purchase_amount: true,
+            conditions: true,
           },
         },
+        offer_metrics: true,
+        campaigns: true,
       },
       orderBy: {
         created_at: 'desc',
+      },
+    });
+  }
+
+  async findOne(id: string) {
+    return this.prisma.offers.findUnique({
+      where: { id },
+      include: {
+        business_branches: {
+          include: {
+            businesses: true,
+          },
+        },
+        offer_media: {
+          orderBy: { sort_order: 'asc' },
+        },
+        offer_rules: {
+          select: {
+            rule_type: true,
+            discount_value: true,
+            buy_quantity: true,
+            get_quantity: true,
+            min_purchase_amount: true,
+            conditions: true,
+          },
+        },
+        offer_metrics: true,
+        campaigns: true,
       },
     });
   }
@@ -276,5 +406,137 @@ export class OffersService {
         status: 'pending',
       },
     });
+  }
+
+  async update(id: string, updateData: any) {
+    const {
+      title,
+      short_description,
+      description,
+      start_date,
+      end_date,
+      status,
+      // Rule updates
+      type,
+      discount_value,
+      buy_quantity,
+      get_quantity,
+      min_purchase_amount,
+      max_discount_amount,
+    } = updateData;
+
+    return this.prisma.$transaction(async (tx: any) => {
+      const offer = await tx.offers.update({
+        where: { id },
+        data: {
+          title,
+          short_description,
+          description,
+          start_date: start_date ? new Date(start_date) : undefined,
+          end_date: end_date ? new Date(end_date) : undefined,
+          status,
+        },
+      });
+
+      if (type || discount_value !== undefined || buy_quantity !== undefined || get_quantity !== undefined || min_purchase_amount !== undefined) {
+        await tx.offer_rules.update({
+          where: { offer_id: id },
+          data: {
+            rule_type: type,
+            discount_value,
+            buy_quantity,
+            get_quantity,
+            min_purchase_amount,
+            max_discount_amount,
+          },
+        });
+      }
+
+      return offer;
+    });
+  }
+
+  async toggleStatus(id: string) {
+    const offer = await this.prisma.offers.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+
+    if (!offer) throw new Error('Offer not found');
+
+    const newStatus = offer.status === 'active' ? 'paused' : 'active';
+
+    return this.prisma.offers.update({
+      where: { id },
+      data: { status: newStatus },
+    });
+  }
+
+  async getDashboardStats(userId: string) {
+    const business = await this.prisma.businesses.findFirst({
+      where: { owner_id: userId },
+      select: { id: true, business_name: true }
+    });
+
+    if (!business) throw new Error('Business not found');
+
+    const offers = await this.prisma.offers.findMany({
+      where: { branch_id: { in: await this.getBranchIds(business.id) } },
+      include: { offer_metrics: true }
+    });
+
+    const totalViews = offers.reduce((acc: number, o: any) => acc + Number(o.offer_metrics?.views || 0), 0);
+    const totalClaims = offers.reduce((acc: number, o: any) => acc + Number(o.offer_metrics?.claims || 0), 0);
+    const totalLeads = offers.reduce((acc: number, o: any) => acc + Number(o.offer_metrics?.clicks || 0), 0);
+
+    const mostViewed = [...offers].sort((a, b) => Number(b.offer_metrics?.views || 0) - Number(a.offer_metrics?.views || 0))[0];
+    const mostClaimed = [...offers].sort((a, b) => Number(b.offer_metrics?.claims || 0) - Number(a.offer_metrics?.claims || 0))[0];
+
+    return {
+      businessName: business.business_name,
+      totalViews,
+      totalClaims,
+      totalLeads,
+      mostViewed: mostViewed ? { id: mostViewed.id, title: mostViewed.title, count: Number(mostViewed.offer_metrics?.views || 0) } : null,
+      mostClaimed: mostClaimed ? { id: mostClaimed.id, title: mostClaimed.title, count: Number(mostClaimed.offer_metrics?.claims || 0) } : null,
+      recentActivity: [] // For now, can be populated from audit logs or similar
+    };
+  }
+
+  async getAnalytics(userId: string) {
+    const business = await this.prisma.businesses.findFirst({
+      where: { owner_id: userId },
+      select: { id: true }
+    });
+
+    if (!business) throw new Error('Business not found');
+    const branchIds = await this.getBranchIds(business.id);
+
+    const stats = await this.prisma.offer_metrics.aggregate({
+      where: { offers: { branch_id: { in: branchIds } } },
+      _sum: {
+        views: true,
+        claims: true,
+        clicks: true,
+        saves: true
+      }
+    });
+
+    return {
+      summary: {
+        totalViews: Number(stats._sum.views || 0),
+        totalClaims: Number(stats._sum.claims || 0),
+        totalLeads: Number(stats._sum.clicks || 0),
+        totalSaves: Number(stats._sum.saves || 0)
+      }
+    };
+  }
+
+  private async getBranchIds(businessId: string) {
+    const branches = await this.prisma.business_branches.findMany({
+      where: { business_id: businessId },
+      select: { id: true }
+    });
+    return branches.map((b: any) => b.id);
   }
 }

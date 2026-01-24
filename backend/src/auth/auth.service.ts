@@ -116,6 +116,23 @@ export class AuthService {
             },
         });
 
+        // 3. Ensure central branch exists for this business
+        const branchCount = await this.prisma.business_branches.count({
+            where: { business_id: business.id },
+        });
+
+        if (branchCount === 0) {
+            await this.prisma.business_branches.create({
+                data: {
+                    business_id: business.id,
+                    branch_name: 'Main Store',
+                    city: 'Default City',
+                    address_line: 'Update address in settings',
+                    is_active: true,
+                },
+            });
+        }
+
         return {
             success: true,
             user: {

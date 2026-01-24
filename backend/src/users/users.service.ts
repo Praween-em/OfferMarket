@@ -14,12 +14,19 @@ export class UsersService {
                 phone: true,
                 email: true,
                 display_name: true,
+                profile_picture: true,
                 role: true,
                 created_at: true,
                 _count: {
                     select: {
                         user_saved_offers: true,
                         user_followed_businesses: true,
+                        offers_offers_created_byTousers: true,
+                    },
+                },
+                businesses: {
+                    include: {
+                        business_branches: true,
                     },
                 },
             },
@@ -62,6 +69,68 @@ export class UsersService {
                 reason: reason,
                 notes: notes,
                 status: 'pending',
+            },
+        });
+    }
+
+    async updateProfile(userId: string, data: { display_name?: string; business_name?: string; whatsapp_number?: string; bio?: string; profile_picture?: string }) {
+        // 1. Update User
+        const user = await this.prisma.users.update({
+            where: { id: userId },
+            data: {
+                display_name: data.display_name,
+                profile_picture: data.profile_picture,
+            },
+        });
+
+        // 2. Update Business
+        // Assuming the user has a business (they should if they are in the owner app)
+        const business = await this.prisma.businesses.updateMany({
+            where: { owner_id: userId },
+            data: {
+                business_name: data.business_name,
+                whatsapp_number: data.whatsapp_number,
+                bio: data.bio,
+                logo_url: data.profile_picture,
+            },
+        });
+
+        // Fetch updated user with business for the response
+        const updatedUser = await this.prisma.users.findUnique({
+            where: { id: userId },
+            include: {
+                businesses: true,
+            },
+        });
+
+        return updatedUser;
+    }
+
+    async updateBranchLocation(userId: string, data: { branchId: string; address_line?: string; city?: string; area?: string; state?: string; pincode?: string; latitude?: number; longitude?: number }) {
+        // Verify the branch belongs to the user
+        const branch = await this.prisma.business_branches.findFirst({
+            where: {
+                id: data.branchId,
+                businesses: {
+                    owner_id: userId,
+                },
+            },
+        });
+
+        if (!branch) {
+            throw new Error('Branch not found or unauthorized');
+        }
+
+        return this.prisma.business_branches.update({
+            where: { id: data.branchId },
+            data: {
+                address_line: data.address_line,
+                city: data.city,
+                area: data.area,
+                state: data.state,
+                pincode: data.pincode,
+                latitude: data.latitude,
+                longitude: data.longitude,
             },
         });
     }

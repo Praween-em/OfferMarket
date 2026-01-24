@@ -88,6 +88,7 @@ model businesses {
   gst_number               String?                    @db.VarChar(32)
   whatsapp_number          String?                    @db.VarChar(20)
   description              String?
+  bio                      String?
   logo_url                 String?
   is_verified              Boolean                    @default(false)
   status                   String                     @default("active") @db.VarChar(16)
@@ -386,6 +387,7 @@ model users {
   is_phone_verified                                    Boolean                    @default(false)
   status                                               user_status_enum           @default(active)
   display_name                                         String?                    @db.VarChar(255)
+  profile_picture                                      String?
   metadata                                             Json?
   created_at                                           DateTime                   @default(now()) @db.Timestamptz(6)
   updated_at                                           DateTime                   @default(now()) @db.Timestamptz(6)
