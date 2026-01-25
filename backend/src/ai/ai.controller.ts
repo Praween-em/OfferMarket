@@ -9,11 +9,12 @@ export class AiController {
     @Post('generate-description')
     @UseGuards(JwtAuthGuard)
     async generateDescription(
-        @Body() body: { itemName: string; campaignTitle: string },
+        @Body() body: { itemName: string; campaignTitle: string; shopName: string },
     ) {
         const description = await this.aiService.generateDescription(
             body.itemName,
             body.campaignTitle,
+            body.shopName,
         );
         return { description };
     }

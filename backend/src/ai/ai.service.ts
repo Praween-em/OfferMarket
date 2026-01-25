@@ -2,19 +2,22 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
+
 @Injectable()
 export class AiService {
     constructor(private configService: ConfigService) { }
 
-    async generateDescription(itemName: string, campaignTitle: string): Promise<string> {
+    async generateDescription(itemName: string, campaignTitle: string, shopName: string): Promise<string> {
         const apiKey = this.configService.get<string>('GEMINI_API_KEY')?.trim();
-        console.log(apiKey);
         if (!apiKey) {
             console.warn('⚠️ GEMINI_API_KEY is missing');
             return 'Gemini API Key missing.';
         }
 
-        const prompt = `Write a professional 4-sentence description for "${itemName}" in the "${campaignTitle}" campaign for the app Ofera with cool emojis specify the iteam specifications in points if the profcut or iteam name is clear perfectly tailored for the app.`;
+        const prompt = `Write a professional 4-sentence description for the product "${itemName}" as part of the "${campaignTitle}" sale at "${shopName}" for the app Ofera. 
+        The description should be exciting, include cool emojis, and perfectly highlight the offer details. 
+        If the product name is clear, specify its key specifications in bullet points. 
+        Ensure the tone is tailored for a premium shopping app experience.`;
 
         try {
             console.log(`📡 Calling Gemini 2.0 Flash via v1beta API...`);
