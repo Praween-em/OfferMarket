@@ -6,7 +6,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   try {
     console.log('Starting application...');
-    console.log('Environment Check:');
+    console.log('Environment Check (2026-01-25 17:25):');
     console.log(`- PORT: ${process.env.PORT || 3000}`);
     console.log(`- DATABASE_URL: ${process.env.DATABASE_URL ? 'Set' : 'Missing'}`);
 
