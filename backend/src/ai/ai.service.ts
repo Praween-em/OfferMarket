@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+import { GoogleGenerativeAI, GenerativeModel, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
 @Injectable()
 export class AiService implements OnModuleInit {
@@ -16,11 +16,26 @@ export class AiService implements OnModuleInit {
     private initModel() {
         const apiKey = this.configService.get<string>('GEMINI_API_KEY');
         if (apiKey) {
-            console.log('🤖 Initializing Stable Gemini AI (1.5 Flash)...');
+            console.log('🤖 Initializing Stable Gemini AI integration...');
             this.genAI = new GoogleGenerativeAI(apiKey);
-            this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+            this.model = this.genAI.getGenerativeModel({
+                model: 'gemini-1.5-flash',
+                generationConfig: {
+                    temperature: 0.8,
+                    topP: 0.95,
+                    topK: 40,
+                    maxOutputTokens: 250,
+                },
+                safetySettings: [
+                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                ],
+            });
         } else {
-            console.warn('⚠️ GEMINI_API_KEY is missing in environment variables');
+            console.warn('⚠️ GEMINI_API_KEY is missing');
         }
     }
 
@@ -28,33 +43,49 @@ export class AiService implements OnModuleInit {
         if (!this.model) {
             const apiKey = this.configService.get<string>('GEMINI_API_KEY');
             if (apiKey) this.initModel();
-            else return 'Gemini API Key not configured in AWS/Env.';
+            else return 'Gemini API Key not configured.';
         }
 
         try {
-            const prompt = `Write a professional and catchy product description for "${itemName}" which is part of an offer campaign titled "${campaignTitle}". 
-            Context: Online marketplace "OfferMarket". Format: 2-3 engaging sentences. Focus on why the customer should grab this deal now!`;
+            const prompt = `Task: Write a professional, catchy, and high-energy product description.
+Item: "${itemName}"
+Context: This is for a marketplace app called "OfferMarket".
+Campaign: "${campaignTitle}"
+Requirements: 
+- Max 3 sentences.
+- Focus on the value and urgengy.
+- Keep it professional yet engaging.`;
 
-            if (!this.model) throw new Error('Model not initialized');
+            if (!this.model) throw new Error('AI Model initialization failed');
 
-            const result = await this.model.generateContent(prompt);
-            return result.response.text().trim();
+            const result = await this.model.generateContent({
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            });
+
+            const response = await result.response;
+            const text = response.text();
+
+            if (!text) {
+                return `Grab the amazing ${itemName} today as part of the ${campaignTitle}! Don't miss out on this exclusive deal.`;
+            }
+
+            return text.trim();
         } catch (error: any) {
-            console.error('❌ Gemini Error:', error.message);
+            console.error('❌ Gemini Integration Error:', error.message);
 
-            // If 1.5 Flash fails for any reason, try the ultra-stable gemini-pro
+            // Manual Fallback Logic for production resilience
             if (this.genAI) {
-                console.log('🔄 Attempting fallback to gemini-pro...');
                 try {
                     const fallbackModel = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
-                    const result = await fallbackModel.generateContent(`Write a catchy description for "${itemName}" in the campaign "${campaignTitle}". Max 3 sentences.`);
-                    return result.response.text().trim() || 'AI failed to generate results.';
-                } catch (fallbackError: any) {
-                    throw new InternalServerErrorException(`AI Quota reached. Please try again in a minute.`);
+                    const result = await fallbackModel.generateContent(`Write a catchy one-sentence offer for ${itemName} in the ${campaignTitle} campaign.`);
+                    const response = await result.response;
+                    return response.text().trim();
+                } catch (fallbackError) {
+                    throw new InternalServerErrorException(`AI services currently unavailable. Please fill manually.`);
                 }
             }
 
-            throw new InternalServerErrorException(`Gemini Error: ${error.message}`);
+            throw new InternalServerErrorException(`AI Error: ${error.message}`);
         }
     }
 }
