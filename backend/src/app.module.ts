@@ -12,6 +12,7 @@ import { BunnyModule } from './bunny/bunny.module';
 import { MediaModule } from './media/media.module';
 import { Msg91Module } from './msg91/msg91.module';
 import { AiModule } from './ai/ai.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AiModule } from './ai/ai.module';
     MediaModule,
     Msg91Module,
     AiModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
