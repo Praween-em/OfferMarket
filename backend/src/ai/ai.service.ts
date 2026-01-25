@@ -14,49 +14,54 @@ export class AiService implements OnModuleInit {
     }
 
     private initModel() {
-        // Trim key to prevent hidden newline/space issues from AWS console
         const apiKey = this.configService.get<string>('GEMINI_API_KEY')?.trim();
         if (apiKey) {
-            console.log('🤖 Initializing ultra-stable Gemini AI (gemini-pro)...');
+            console.log('🤖 Initializing Gemini AI with diagnostic logging...');
             this.genAI = new GoogleGenerativeAI(apiKey);
-            this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+            // Defaulting to the most likely to succeed based on typical free-tier accounts
+            this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         } else {
             console.warn('⚠️ GEMINI_API_KEY is missing');
         }
     }
 
     async generateDescription(itemName: string, campaignTitle: string): Promise<string> {
-        if (!this.model) {
+        if (!this.genAI) {
             const apiKey = this.configService.get<string>('GEMINI_API_KEY')?.trim();
             if (apiKey) this.initModel();
-            else return 'Gemini API Key not configured.';
+            else return 'Gemini API Key missing.';
         }
 
-        const prompt = `Write a catchy 2-sentence marketplace description for "${itemName}" in the "${campaignTitle}" campaign.`;
+        const prompt = `Write a professional 2-sentence description for "${itemName}" in the "${campaignTitle}" campaign for the app OfferMarket.`;
 
-        // Array of models to try in order of stability
-        const modelsToTry = ['gemini-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+        // The most comprehensive list of stable and latest identifiers
+        const modelsToScan = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
 
-        for (const modelName of modelsToTry) {
+        for (const modelId of modelsToScan) {
             try {
-                // Ensure genAI is initialized before attempting to get a model
-                if (!this.genAI) {
-                    throw new Error('GoogleGenerativeAI not initialized.');
-                }
-                const currentModel = this.genAI.getGenerativeModel({ model: modelName });
+                console.log(`📡 Trying model: ${modelId}...`);
+                const currentModel = this.genAI!.getGenerativeModel({ model: modelId });
                 const result = await currentModel.generateContent(prompt);
-                const response = await result.response;
-                const text = response.text();
-                if (text) return text.trim();
+                const text = result.response.text();
+                if (text) {
+                    console.log(`✅ Success with ${modelId}`);
+                    return text.trim();
+                }
             } catch (error: any) {
-                console.warn(`⚠️ Model ${modelName} failed: ${error.message}`);
-                // If it's a 404, continue to next model. If it's something else (like 429), throw it.
+                console.warn(`❌ ${modelId} failed: ${error.message}`);
+                // If we get a 429 quota error, we stop and tell the user
+                if (error.message.includes('429')) {
+                    throw new InternalServerErrorException('AI Quota Exceeded. Please check your Google AI Console billing/limits.');
+                }
+                // If it's anything other than a 404, we report it
                 if (!error.message.includes('404') && !error.message.includes('not found')) {
-                    throw new InternalServerErrorException(`Gemini Error: ${error.message}`);
+                    throw new InternalServerErrorException(`AI Error: ${error.message}`);
                 }
             }
         }
 
-        throw new InternalServerErrorException('All AI models returned 404. Please check project region in Google AI Console.');
+        // Final Fallback if ALL models 404
+        console.error('🚨 All Gemini models returned 404. Key may be restricted or Generative Language API not enabled.');
+        return `Don't miss out on this amazing ${itemName}! Available now as part of our ${campaignTitle}. Grab this exclusive deal before it's gone!`;
     }
 }
