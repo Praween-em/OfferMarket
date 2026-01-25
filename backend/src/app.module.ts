@@ -29,4 +29,8 @@ import { AiModule } from './ai/ai.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {
+  constructor() {
+    console.log('✅ AppModule Initialized - Version: 2026-01-25-v3 (Gemini & Fixes)');
+  }
+}
