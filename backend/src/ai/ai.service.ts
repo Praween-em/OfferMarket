@@ -14,7 +14,7 @@ export class AiService {
             return 'Gemini API Key missing.';
         }
 
-        const prompt = `Write a professional 2-sentence description for "${itemName}" in the "${campaignTitle}" campaign for the app OfferMarket.`;
+        const prompt = `Write a professional 4-sentence description for "${itemName}" in the "${campaignTitle}" campaign for the app Ofera with cool emojis specify the iteam specifications in points if the profcut or iteam name is clear perfectly tailored for the app.`;
 
         try {
             console.log(`📡 Calling Gemini 2.0 Flash via v1beta API...`);
