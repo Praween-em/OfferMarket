@@ -16,24 +16,14 @@ export class AiService implements OnModuleInit {
     private initModel() {
         const apiKey = this.configService.get<string>('GEMINI_API_KEY');
         if (apiKey) {
-            console.log('🤖 Initializing Stable Gemini AI integration...');
+            console.log('🤖 Initializing Gemini AI (Stable v1)...');
             this.genAI = new GoogleGenerativeAI(apiKey);
 
-            this.model = this.genAI.getGenerativeModel({
-                model: 'gemini-1.5-flash',
-                generationConfig: {
-                    temperature: 0.8,
-                    topP: 0.95,
-                    topK: 40,
-                    maxOutputTokens: 250,
-                },
-                safetySettings: [
-                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                ],
-            });
+            // Explicitly use v1 (stable) to avoid v1beta 404 issues
+            this.model = this.genAI.getGenerativeModel(
+                { model: 'gemini-1.5-flash' },
+                { apiVersion: 'v1' }
+            );
         } else {
             console.warn('⚠️ GEMINI_API_KEY is missing');
         }
@@ -46,42 +36,27 @@ export class AiService implements OnModuleInit {
             else return 'Gemini API Key not configured.';
         }
 
-        try {
-            const prompt = `Task: Write a professional, catchy, and high-energy product description.
-Item: "${itemName}"
-Context: This is for a marketplace app called "OfferMarket".
-Campaign: "${campaignTitle}"
-Requirements: 
-- Max 3 sentences.
-- Focus on the value and urgengy.
-- Keep it professional yet engaging.`;
+        const prompt = `Task: Write a catchy 2-sentence description for "${itemName}" in the "${campaignTitle}" offer campaign. Keep it professional.`;
 
+        try {
             if (!this.model) throw new Error('AI Model initialization failed');
 
-            const result = await this.model.generateContent({
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            });
-
+            const result = await this.model.generateContent(prompt);
             const response = await result.response;
-            const text = response.text();
-
-            if (!text) {
-                return `Grab the amazing ${itemName} today as part of the ${campaignTitle}! Don't miss out on this exclusive deal.`;
-            }
-
-            return text.trim();
+            return response.text().trim();
         } catch (error: any) {
-            console.error('❌ Gemini Integration Error:', error.message);
+            console.error('❌ Gemini Error:', error.message);
 
-            // Manual Fallback Logic for production resilience
-            if (this.genAI) {
+            // If gemini-1.5-flash (v1) fails, try the ultra-compatible 'gemini-pro'
+            if (error.message.includes('404') || error.message.includes('not found')) {
+                console.log('🔄 Attempting fallback to legacy gemini-pro string...');
                 try {
-                    const fallbackModel = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
-                    const result = await fallbackModel.generateContent(`Write a catchy one-sentence offer for ${itemName} in the ${campaignTitle} campaign.`);
-                    const response = await result.response;
-                    return response.text().trim();
+                    const fallbackModel = this.genAI?.getGenerativeModel({ model: 'gemini-pro' });
+                    const result = await fallbackModel?.generateContent(prompt);
+                    const response = await result?.response;
+                    return response?.text().trim() || 'Grab this offer now!';
                 } catch (fallbackError) {
-                    throw new InternalServerErrorException(`AI services currently unavailable. Please fill manually.`);
+                    throw new InternalServerErrorException(`Model not available in your region. Check Google AI Console.`);
                 }
             }
 
