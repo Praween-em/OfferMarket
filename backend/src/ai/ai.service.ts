@@ -16,9 +16,9 @@ export class AiService implements OnModuleInit {
     private initModel() {
         const apiKey = this.configService.get<string>('GEMINI_API_KEY');
         if (apiKey) {
-            console.log('🤖 Initializing Gemini 2.0 AI...');
+            console.log('🤖 Initializing Stable Gemini AI (1.5 Flash)...');
             this.genAI = new GoogleGenerativeAI(apiKey);
-            this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+            this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         } else {
             console.warn('⚠️ GEMINI_API_KEY is missing in environment variables');
         }
@@ -32,8 +32,8 @@ export class AiService implements OnModuleInit {
         }
 
         try {
-            const prompt = `Write a catchy product description for "${itemName}" which is part of an offer campaign titled "${campaignTitle}". 
-            Context: Marketplace app "OfferMarket". Format: Catchy, professional, max 3 sentences. Highlight why the user should claim it now.`;
+            const prompt = `Write a professional and catchy product description for "${itemName}" which is part of an offer campaign titled "${campaignTitle}". 
+            Context: Online marketplace "OfferMarket". Format: 2-3 engaging sentences. Focus on why the customer should grab this deal now!`;
 
             if (!this.model) throw new Error('Model not initialized');
 
@@ -42,16 +42,15 @@ export class AiService implements OnModuleInit {
         } catch (error: any) {
             console.error('❌ Gemini Error:', error.message);
 
-            // FALLBACK: Try gemini-1.5-flash if 2.0-flash is not available in the region
-            if (error.message.includes('404') || error.message.includes('not found')) {
-                console.log('🔄 Attempting fallback to gemini-1.5-flash...');
+            // If 1.5 Flash fails for any reason, try the ultra-stable gemini-pro
+            if (this.genAI) {
+                console.log('🔄 Attempting fallback to gemini-pro...');
                 try {
-                    const fallbackModel = this.genAI?.getGenerativeModel({ model: 'gemini-1.5-flash' });
-                    const prompt = `Write a catchy product description for "${itemName}" for our app OfferMarket. Campaign: "${campaignTitle}". Max 3 sentences.`;
-                    const result = await fallbackModel?.generateContent(prompt);
-                    return result?.response.text().trim() || 'AI failed to generate results.';
+                    const fallbackModel = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+                    const result = await fallbackModel.generateContent(`Write a catchy description for "${itemName}" in the campaign "${campaignTitle}". Max 3 sentences.`);
+                    return result.response.text().trim() || 'AI failed to generate results.';
                 } catch (fallbackError: any) {
-                    throw new InternalServerErrorException(`Gemini Error (including fallback): ${fallbackError.message}`);
+                    throw new InternalServerErrorException(`AI Quota reached. Please try again in a minute.`);
                 }
             }
 
