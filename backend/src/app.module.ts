@@ -11,6 +11,7 @@ import { ConfigModule } from '@nestjs/config';
 import { BunnyModule } from './bunny/bunny.module';
 import { MediaModule } from './media/media.module';
 import { Msg91Module } from './msg91/msg91.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { Msg91Module } from './msg91/msg91.module';
     BunnyModule,
     MediaModule,
     Msg91Module,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
