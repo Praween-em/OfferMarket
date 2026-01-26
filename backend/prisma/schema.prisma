@@ -242,6 +242,7 @@ model offer_metrics {
   clicks                 BigInt    @default(0)
   claims                 BigInt    @default(0)
   saves                  BigInt    @default(0)
+  shares                 BigInt    @default(0)
   last_metric_updated_at DateTime? @db.Timestamptz(6)
   offers                 offers    @relation(fields: [offer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
@@ -401,6 +402,7 @@ model users {
   notifications                                        notifications[]
   offer_claims                                         offer_claims[]
   offer_clicks                                         offer_clicks[]
+  offer_leads                                          offer_leads[]
   offer_reports_offer_reports_reported_byTousers       offer_reports[]            @relation("offer_reports_reported_byTousers")
   offer_reports_offer_reports_reviewed_byTousers       offer_reports[]            @relation("offer_reports_reviewed_byTousers")
   offer_views                                          offer_views[]
@@ -408,9 +410,27 @@ model users {
   offers_offers_created_byTousers                      offers[]                   @relation("offers_created_byTousers")
   user_followed_businesses                             user_followed_businesses[]
   user_saved_offers                                    user_saved_offers[]
-  offer_leads                                          offer_leads[]
 
   @@index([role, status], map: "idx_users_role_status")
+}
+
+model offer_leads {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  offer_id     String           @db.Uuid
+  user_id      String?          @db.Uuid
+  user_phone   String           @db.VarChar(20)
+  user_name    String?          @db.VarChar(255)
+  status       lead_status_enum @default(new)
+  created_at   DateTime         @default(now()) @db.Timestamptz(6)
+  contacted_at DateTime?        @db.Timestamptz(6)
+  metadata     Json?
+  offers       offers           @relation(fields: [offer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users?           @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+
+  @@index([offer_id], map: "idx_offer_leads_offer_id")
+  @@index([user_id], map: "idx_offer_leads_user_id")
+  @@index([status], map: "idx_offer_leads_status")
+  @@index([created_at(sort: Desc)], map: "idx_offer_leads_created_at")
 }
 
 enum brand_type_enum {
@@ -495,28 +515,8 @@ enum user_status_enum {
   banned
 }
 
-model offer_leads {
-  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  offer_id     String            @db.Uuid
-  user_id      String?           @db.Uuid
-  user_phone   String            @db.VarChar(20)
-  user_name    String?           @db.VarChar(255)
-  status       lead_status_enum  @default(new)
-  created_at   DateTime          @default(now()) @db.Timestamptz(6)
-  contacted_at DateTime?         @db.Timestamptz(6)
-  metadata     Json?
-  offers       offers            @relation(fields: [offer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users        users?            @relation(fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
-
-  @@index([offer_id], map: "idx_offer_leads_offer_id")
-  @@index([user_id], map: "idx_offer_leads_user_id")
-  @@index([status], map: "idx_offer_leads_status")
-  @@index([created_at(sort: Desc)], map: "idx_offer_leads_created_at")
-}
-
 enum lead_status_enum {
   new
   contacted
   converted
 }
-

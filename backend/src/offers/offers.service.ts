@@ -481,11 +481,11 @@ export class OffersService {
     });
 
     const totalViews = offers.reduce((acc: number, o: any) => acc + Number(o.offer_metrics?.views || 0), 0);
-    const totalClaims = offers.reduce((acc: number, o: any) => acc + Number(o.offer_metrics?.claims || 0), 0);
+    const totalShares = offers.reduce((acc: number, o: any) => acc + Number(o.offer_metrics?.shares || 0), 0);
     const totalLeads = offers.reduce((acc: number, o: any) => acc + Number(o.offer_metrics?.clicks || 0), 0);
 
     const mostViewed = [...offers].sort((a, b) => Number(b.offer_metrics?.views || 0) - Number(a.offer_metrics?.views || 0))[0];
-    const mostClaimed = [...offers].sort((a, b) => Number(b.offer_metrics?.claims || 0) - Number(a.offer_metrics?.claims || 0))[0];
+    const mostShared = [...offers].sort((a, b) => Number(b.offer_metrics?.shares || 0) - Number(a.offer_metrics?.shares || 0))[0];
 
     // Get unread notification count
     const unreadNotifications = await this.prisma.notifications.count({
@@ -498,11 +498,11 @@ export class OffersService {
     return {
       businessName: business.business_name,
       totalViews,
-      totalClaims,
+      totalShares,
       totalLeads,
       unreadNotifications,
       mostViewed: mostViewed ? { id: mostViewed.id, title: mostViewed.title, count: Number(mostViewed.offer_metrics?.views || 0) } : null,
-      mostClaimed: mostClaimed ? { id: mostClaimed.id, title: mostClaimed.title, count: Number(mostClaimed.offer_metrics?.claims || 0) } : null,
+      mostShared: mostShared ? { id: mostShared.id, title: mostShared.title, count: Number(mostShared.offer_metrics?.shares || 0) } : null,
       recentActivity: [] // For now, can be populated from audit logs or similar
     };
   }
@@ -522,7 +522,8 @@ export class OffersService {
         views: true,
         claims: true,
         clicks: true,
-        saves: true
+        saves: true,
+        shares: true
       }
     });
 
@@ -531,7 +532,8 @@ export class OffersService {
         totalViews: Number(stats._sum.views || 0),
         totalClaims: Number(stats._sum.claims || 0),
         totalLeads: Number(stats._sum.clicks || 0),
-        totalSaves: Number(stats._sum.saves || 0)
+        totalSaves: Number(stats._sum.saves || 0),
+        totalShares: Number(stats._sum.shares || 0)
       }
     };
   }
