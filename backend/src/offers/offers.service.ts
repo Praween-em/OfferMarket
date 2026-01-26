@@ -497,13 +497,21 @@ export class OffersService {
 
     return {
       businessName: business.business_name,
-      totalViews,
-      totalShares,
-      totalLeads,
-      unreadNotifications,
-      mostViewed: mostViewed ? { id: mostViewed.id, title: mostViewed.title, count: Number(mostViewed.offer_metrics?.views || 0) } : null,
-      mostShared: mostShared ? { id: mostShared.id, title: mostShared.title, count: Number(mostShared.offer_metrics?.shares || 0) } : null,
-      recentActivity: [] // For now, can be populated from audit logs or similar
+      totalViews: Number(totalViews),
+      totalShares: Number(totalShares),
+      totalLeads: Number(totalLeads),
+      unreadNotifications: Number(unreadNotifications),
+      mostViewed: mostViewed && mostViewed.offer_metrics ? {
+        id: mostViewed.id,
+        title: mostViewed.title,
+        count: Number(mostViewed.offer_metrics.views || 0)
+      } : null,
+      mostShared: mostShared && mostShared.offer_metrics ? {
+        id: mostShared.id,
+        title: mostShared.title,
+        count: Number(mostShared.offer_metrics.shares || 0)
+      } : null,
+      recentActivity: []
     };
   }
 
