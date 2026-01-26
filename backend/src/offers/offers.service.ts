@@ -84,24 +84,19 @@ export class OffersService {
           },
         });
 
-        // 5. Create Media for the offer
-        if (item.image1) {
-          await tx.offer_media.create({
-            data: {
-              offer_id: offer.id,
-              image_url: item.image1,
-              sort_order: 0,
-            },
-          });
-        }
-        if (item.image2) {
-          await tx.offer_media.create({
-            data: {
-              offer_id: offer.id,
-              image_url: item.image2,
-              sort_order: 1,
-            },
-          });
+        // 5. Create Media for the offer (support multiple images)
+        const imagesToUpload = item.images || [item.image1, item.image2].filter(Boolean);
+
+        for (let i = 0; i < imagesToUpload.length; i++) {
+          if (imagesToUpload[i]) {
+            await tx.offer_media.create({
+              data: {
+                offer_id: offer.id,
+                image_url: imagesToUpload[i],
+                sort_order: i,
+              },
+            });
+          }
         }
 
         createdOffers.push(offer);
@@ -492,11 +487,20 @@ export class OffersService {
     const mostViewed = [...offers].sort((a, b) => Number(b.offer_metrics?.views || 0) - Number(a.offer_metrics?.views || 0))[0];
     const mostClaimed = [...offers].sort((a, b) => Number(b.offer_metrics?.claims || 0) - Number(a.offer_metrics?.claims || 0))[0];
 
+    // Get unread notification count
+    const unreadNotifications = await this.prisma.notifications.count({
+      where: {
+        user_id: userId,
+        is_read: false
+      }
+    });
+
     return {
       businessName: business.business_name,
       totalViews,
       totalClaims,
       totalLeads,
+      unreadNotifications,
       mostViewed: mostViewed ? { id: mostViewed.id, title: mostViewed.title, count: Number(mostViewed.offer_metrics?.views || 0) } : null,
       mostClaimed: mostClaimed ? { id: mostClaimed.id, title: mostClaimed.title, count: Number(mostClaimed.offer_metrics?.claims || 0) } : null,
       recentActivity: [] // For now, can be populated from audit logs or similar
