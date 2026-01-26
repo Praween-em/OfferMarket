@@ -14,7 +14,7 @@ export class AiService {
             return 'Gemini API Key missing.';
         }
 
-        const prompt = `Write a professional 4-sentence description for the product "${itemName}" as part of the "${campaignTitle}" sale at "${shopName}" for the app Ofera. 
+        const prompt = `Write a professional 2-sentence description for the product "${itemName}" as part of the "${campaignTitle}" sale at "${shopName}" for the app Ofera. 
         The description should be exciting, include cool emojis, and perfectly highlight the offer details. 
         If the product name is clear, specify its key specifications in bullet points. 
         Ensure the tone is tailored for a premium shopping app experience.`;

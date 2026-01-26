@@ -5,7 +5,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/offer_market
+      - DATABASE_URL=postgresql://postgres:8520894522@database-1.ca7woeg2wmuh.us-east-1.rds.amazonaws.com:5432/database-1?schema=public&sslmode=no-verify
       - PORT=3000
     depends_on:
       - db
