@@ -185,7 +185,7 @@ export class OffersLeadsService {
             ...recentViews.map(view => ({
                 type: 'view' as const,
                 user_name: view.users?.display_name || 'Anonymous',
-                offer_title: view.offers.title,
+                offer_title: view.offers?.title || 'Unknown Offer',
                 timestamp: view.created_at,
             })),
         ];
