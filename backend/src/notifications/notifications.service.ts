@@ -33,7 +33,7 @@ export class NotificationsService implements OnModuleInit {
     }
 
     async registerToken(userId: string, fcmToken: string, platform: string = 'android') {
-        return this.prisma.user_device_tokens.upsert({
+        return (this.prisma as any).user_device_tokens.upsert({
             where: { fcm_token: fcmToken },
             update: { user_id: userId, platform },
             create: { user_id: userId, fcm_token: fcmToken, platform },
@@ -41,7 +41,7 @@ export class NotificationsService implements OnModuleInit {
     }
 
     async sendPushNotification(userId: string, title: string, body: string, data?: any) {
-        const tokens = await this.prisma.user_device_tokens.findMany({
+        const tokens = await (this.prisma as any).user_device_tokens.findMany({
             where: { user_id: userId },
         });
 
@@ -71,7 +71,7 @@ export class NotificationsService implements OnModuleInit {
 
             // Clean up invalid tokens
             if (response.failureCount > 0) {
-                const tokensToDelete = [];
+                const tokensToDelete: string[] = [];
                 response.responses.forEach((resp, idx) => {
                     if (!resp.success && (resp.error?.code === 'messaging/registration-token-not-registered' || resp.error?.code === 'messaging/invalid-registration-token')) {
                         tokensToDelete.push(fcmTokens[idx]);
@@ -79,7 +79,7 @@ export class NotificationsService implements OnModuleInit {
                 });
 
                 if (tokensToDelete.length > 0) {
-                    await this.prisma.user_device_tokens.deleteMany({
+                    await (this.prisma as any).user_device_tokens.deleteMany({
                         where: { fcm_token: { in: tokensToDelete } },
                     });
                 }
