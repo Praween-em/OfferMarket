@@ -11,13 +11,16 @@ export class NotificationsService implements OnModuleInit {
     ) { }
 
     onModuleInit() {
-        const serviceAccountPath = this.configService.get<string>('FIREBASE_SERVICE_ACCOUNT');
-        if (serviceAccountPath) {
+        const serviceAccountValue = this.configService.get<string>('FIREBASE_SERVICE_ACCOUNT');
+        if (serviceAccountValue) {
             try {
-                // Check if already initialized to avoid errors during hot reload
                 if (admin.apps.length === 0) {
+                    const config = serviceAccountValue.trim().startsWith('{')
+                        ? JSON.parse(serviceAccountValue)
+                        : serviceAccountValue;
+
                     admin.initializeApp({
-                        credential: admin.credential.cert(serviceAccountPath),
+                        credential: admin.credential.cert(config),
                     });
                     console.log('✅ Firebase Admin initialized successfully');
                 }
@@ -25,7 +28,7 @@ export class NotificationsService implements OnModuleInit {
                 console.error('❌ Failed to initialize Firebase Admin:', error);
             }
         } else {
-            console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT not found in environment. Push notifications will not work.');
+            console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT not found. Push notifications will not work.');
         }
     }
 
