@@ -150,41 +150,47 @@ export class UsersService {
     }
 
     async findOneBusiness(id: string, userId?: string) {
-        const business = await this.prisma.businesses.findUnique({
-            where: { id },
-            include: {
-                business_branches: {
-                    include: {
-                        offers: {
-                            include: {
-                                offer_media: { take: 1, orderBy: { sort_order: 'asc' } },
-                                offer_rules: true,
-                                offer_metrics: true,
-                                user_saved_offers: userId ? { where: { user_id: userId } } : false,
-                                _count: {
-                                    select: {
-                                        offer_views: true,
-                                        offer_clicks: true,
-                                        offer_leads: true,
-                                        user_saved_offers: true,
-                                    }
+        const include: any = {
+            business_branches: {
+                include: {
+                    offers: {
+                        include: {
+                            offer_media: { take: 1, orderBy: { sort_order: 'asc' } },
+                            offer_rules: true,
+                            offer_metrics: true,
+                            _count: {
+                                select: {
+                                    offer_views: true,
+                                    offer_clicks: true,
+                                    offer_leads: true,
+                                    user_saved_offers: true,
                                 }
                             }
                         }
                     }
-                },
-                business_metrics: true,
-                _count: {
-                    select: {
-                        user_followed_businesses: true,
-                    }
-                },
-                user_followed_businesses: userId ? {
-                    where: {
-                        user_id: userId
-                    }
-                } : false
+                }
+            },
+            business_metrics: true,
+            _count: {
+                select: {
+                    user_followed_businesses: true,
+                }
             }
+        };
+
+        if (userId) {
+            include.user_followed_businesses = {
+                where: { user_id: userId }
+            };
+            // Add user_saved_offers filter to offers
+            include.business_branches.include.offers.include.user_saved_offers = {
+                where: { user_id: userId }
+            };
+        }
+
+        const business = await this.prisma.businesses.findUnique({
+            where: { id },
+            include
         });
 
         if (business) {
