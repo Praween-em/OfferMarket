@@ -149,18 +149,54 @@ export class UsersService {
         });
     }
 
-    async findOneBusiness(id: string) {
-        return this.prisma.businesses.findUnique({
+    async findOneBusiness(id: string, userId?: string) {
+        const business = await this.prisma.businesses.findUnique({
             where: { id },
             include: {
-                business_branches: true,
+                business_branches: {
+                    include: {
+                        offers: {
+                            include: {
+                                offer_media: { take: 1, orderBy: { sort_order: 'asc' } },
+                                offer_rules: true,
+                                offer_metrics: true,
+                                user_saved_offers: userId ? { where: { user_id: userId } } : false,
+                                _count: {
+                                    select: {
+                                        offer_views: true,
+                                        offer_clicks: true,
+                                        offer_leads: true,
+                                        user_saved_offers: true,
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 business_metrics: true,
                 _count: {
                     select: {
                         user_followed_businesses: true,
                     }
-                }
+                },
+                user_followed_businesses: userId ? {
+                    where: {
+                        user_id: userId
+                    }
+                } : false
             }
         });
+
+        if (business) {
+            // Flatten offers from all branches
+            (business as any).offers = business.business_branches.flatMap(b => b.offers || []);
+
+            if (userId) {
+                (business as any).isFollowing = business.user_followed_businesses.length > 0;
+                delete (business as any).user_followed_businesses;
+            }
+        }
+
+        return business;
     }
 }

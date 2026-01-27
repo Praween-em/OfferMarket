@@ -65,4 +65,37 @@ export class OffersController {
   getAnalytics(@Request() req: any) {
     return this.offersService.getAnalytics(req.user.userId);
   }
+
+  @Post(':id/view')
+  trackView(@Param('id') id: string, @Request() req: any, @Body() body: any) {
+    return this.offersService.trackView(id, req.user?.userId, body);
+  }
+
+  @Post(':id/click')
+  trackClick(@Param('id') id: string, @Request() req: any, @Body('action') action: string) {
+    return this.offersService.trackClick(id, action, req.user?.userId);
+  }
+
+  @Post(':id/share')
+  trackShare(@Param('id') id: string) {
+    return this.offersService.trackShare(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/save')
+  saveOffer(@Param('id') id: string, @Request() req: any) {
+    return this.offersService.saveOffer(id, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/save')
+  unsaveOffer(@Param('id') id: string, @Request() req: any) {
+    return this.offersService.unsaveOffer(id, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/lead')
+  createLead(@Param('id') id: string, @Request() req: any, @Body() leadData: any) {
+    return this.offersService.createLead(id, req.user.userId, leadData);
+  }
 }

@@ -356,6 +356,14 @@ export class OffersService {
         },
         offer_metrics: true,
         campaigns: true,
+        _count: {
+          select: {
+            offer_views: true,
+            offer_clicks: true,
+            offer_leads: true,
+            user_saved_offers: true,
+          }
+        }
       },
       orderBy: {
         created_at: 'desc',
@@ -387,6 +395,14 @@ export class OffersService {
         },
         offer_metrics: true,
         campaigns: true,
+        _count: {
+          select: {
+            offer_views: true,
+            offer_clicks: true,
+            offer_leads: true,
+            user_saved_offers: true,
+          }
+        }
       },
     });
   }
@@ -552,5 +568,94 @@ export class OffersService {
       select: { id: true }
     });
     return branches.map((b: any) => b.id);
+  }
+
+  async trackView(offerId: string, userId?: string, data?: { sessionId?: string, ip?: string, userAgent?: string }) {
+    await this.prisma.offer_views.create({
+      data: {
+        offer_id: offerId,
+        user_id: userId,
+        session_id: data?.sessionId,
+        ip_address: data?.ip,
+        user_agent: data?.userAgent,
+      }
+    });
+
+    return this.prisma.offer_metrics.upsert({
+      where: { offer_id: offerId },
+      update: { views: { increment: 1 }, last_metric_updated_at: new Date() },
+      create: { offer_id: offerId, views: 1 }
+    });
+  }
+
+  async trackClick(offerId: string, action: string, userId?: string) {
+    await this.prisma.offer_clicks.create({
+      data: {
+        offer_id: offerId,
+        user_id: userId,
+        action: action,
+      }
+    });
+
+    return this.prisma.offer_metrics.upsert({
+      where: { offer_id: offerId },
+      update: { clicks: { increment: 1 }, last_metric_updated_at: new Date() },
+      create: { offer_id: offerId, clicks: 1 }
+    });
+  }
+
+  async trackShare(offerId: string) {
+    return this.prisma.offer_metrics.upsert({
+      where: { offer_id: offerId },
+      update: { shares: { increment: 1 }, last_metric_updated_at: new Date() },
+      create: { offer_id: offerId, shares: 1 }
+    });
+  }
+
+  async saveOffer(offerId: string, userId: string) {
+    await this.prisma.user_saved_offers.upsert({
+      where: {
+        user_id_offer_id: { user_id: userId, offer_id: offerId }
+      },
+      update: {},
+      create: { user_id: userId, offer_id: offerId }
+    });
+
+    return this.prisma.offer_metrics.upsert({
+      where: { offer_id: offerId },
+      update: { saves: { increment: 1 }, last_metric_updated_at: new Date() },
+      create: { offer_id: offerId, saves: 1 }
+    });
+  }
+
+  async unsaveOffer(offerId: string, userId: string) {
+    await this.prisma.user_saved_offers.delete({
+      where: {
+        user_id_offer_id: { user_id: userId, offer_id: offerId }
+      }
+    });
+
+    return this.prisma.offer_metrics.update({
+      where: { offer_id: offerId },
+      data: { saves: { decrement: 1 }, last_metric_updated_at: new Date() }
+    });
+  }
+
+  async createLead(offerId: string, userId: string, leadData: { phone: string, name?: string, type: string }) {
+    await this.prisma.offer_leads.create({
+      data: {
+        offer_id: offerId,
+        user_id: userId,
+        user_phone: leadData.phone,
+        user_name: leadData.name,
+        metadata: { type: leadData.type }
+      }
+    });
+
+    return this.prisma.offer_metrics.upsert({
+      where: { offer_id: offerId },
+      update: { clicks: { increment: 1 }, last_metric_updated_at: new Date() },
+      create: { offer_id: offerId, clicks: 1 }
+    });
   }
 }

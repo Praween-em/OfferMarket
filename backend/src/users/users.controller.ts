@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Request } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 
 @Controller('users')
 export class UsersController {
@@ -51,8 +52,9 @@ export class UsersController {
         return this.usersService.findAllBusinesses();
     }
 
+    @UseGuards(OptionalJwtAuthGuard)
     @Get('business/:id')
-    getBusiness(@Param('id') id: string) {
-        return this.usersService.findOneBusiness(id);
+    getBusiness(@Param('id') id: string, @Request() req: any) {
+        return this.usersService.findOneBusiness(id, req.user?.userId);
     }
 }
