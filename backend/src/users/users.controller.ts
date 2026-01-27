@@ -50,4 +50,9 @@ export class UsersController {
     getBusinesses() {
         return this.usersService.findAllBusinesses();
     }
+
+    @Get('business/:id')
+    getBusiness(@Param('id') id: string) {
+        return this.usersService.findOneBusiness(id);
+    }
 }

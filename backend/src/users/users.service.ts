@@ -148,4 +148,19 @@ export class UsersService {
             }
         });
     }
+
+    async findOneBusiness(id: string) {
+        return this.prisma.businesses.findUnique({
+            where: { id },
+            include: {
+                business_branches: true,
+                business_metrics: true,
+                _count: {
+                    select: {
+                        user_followed_businesses: true,
+                    }
+                }
+            }
+        });
+    }
 }
