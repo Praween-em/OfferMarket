@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, UseGuards, Request, Body } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -9,7 +9,12 @@ export class NotificationsController {
 
     @Get()
     async getNotifications(@Request() req: any) {
-        return this.notificationsService.getUserNotifications(req.user.id);
+        return this.notificationsService.getUserNotifications(req.user.userId);
+    }
+
+    @Post('register-token')
+    async registerToken(@Request() req: any, @Body() body: { fcmToken: string; platform?: string }) {
+        return this.notificationsService.registerToken(req.user.userId, body.fcmToken, body.platform);
     }
 
     @Post(':id/read')
@@ -19,6 +24,6 @@ export class NotificationsController {
 
     @Delete('clear')
     async clearNotifications(@Request() req: any) {
-        return this.notificationsService.clearAll(req.user.id);
+        return this.notificationsService.clearAll(req.user.userId);
     }
 }

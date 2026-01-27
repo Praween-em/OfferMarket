@@ -2,10 +2,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOfferDto } from './dto/create-offer.dto'; // Assuming this DTO exists
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class OffersService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService
+  ) { }
 
   async createCampaign(userId: string, createCampaignDto: any) {
     const { title, start_date, end_date, items } = createCampaignDto;
@@ -34,13 +38,14 @@ export class OffersService {
       business.business_branches = [defaultBranch];
     }
 
+    const currentBusiness = business; // For TS null safety in async closures
     const branchId = business.business_branches[0].id;
 
-    return this.prisma.$transaction(async (tx: any) => {
+    const result = await this.prisma.$transaction(async (tx: any) => {
       // 2. Create the Campaign
       const campaign = await tx.campaigns.create({
         data: {
-          business_id: business.id,
+          business_id: currentBusiness.id,
           name: title,
           start_date: new Date(start_date),
           end_date: new Date(end_date),
@@ -104,6 +109,32 @@ export class OffersService {
 
       return { campaign, offers: createdOffers };
     });
+
+    // Notify followers (async, don't block response)
+    this.notifyFollowers(currentBusiness.id, title, `New deals from ${currentBusiness.business_name}!`);
+
+    return result;
+  }
+
+  private async notifyFollowers(businessId: string, title: string, message: string) {
+    try {
+      const followers = await this.prisma.user_followed_businesses.findMany({
+        where: { business_id: businessId },
+        select: { user_id: true }
+      });
+
+      for (const follower of followers) {
+        // This is non-blocking for each follower to ensure speed
+        this.notificationsService.sendPushNotification(
+          follower.user_id,
+          title,
+          message,
+          { businessId, type: 'new_offer' }
+        ).catch(err => console.error(`Failed to notify user ${follower.user_id}:`, err));
+      }
+    } catch (error) {
+      console.error('Failed to notify followers:', error);
+    }
   }
 
   async create(createOfferDto: CreateOfferDto) {
