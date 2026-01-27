@@ -45,4 +45,9 @@ export class UsersController {
     updateBranchLocation(@Request() req: any, @Body() data: any) {
         return this.usersService.updateBranchLocation(req.user.userId, data);
     }
+
+    @Get('businesses')
+    getBusinesses() {
+        return this.usersService.findAllBusinesses();
+    }
 }

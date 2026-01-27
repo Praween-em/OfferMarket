@@ -134,4 +134,18 @@ export class UsersService {
             },
         });
     }
+
+    async findAllBusinesses() {
+        return this.prisma.businesses.findMany({
+            where: {
+                status: 'active',
+            },
+            include: {
+                business_branches: true,
+            },
+            orderBy: {
+                business_name: 'asc'
+            }
+        });
+    }
 }
